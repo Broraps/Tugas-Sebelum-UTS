@@ -2,54 +2,73 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-st.title("🔍 Halaman Testing - Naive Bayes")
+st.title("🔍 Halaman Testing - Naive Bayes (Pilih Baris)")
 
 # Load model
 @st.cache_resource
 def load_model():
-    return joblib.load("naive_bayes_model.pkl")
+    return joblib.load("naive_bayes_models.pkl")
 
 model = load_model()
 
-# Form input untuk data baru
-with st.form("form_testing"):
-    st.subheader("Input Data Testing")
-    col1, col2 = st.columns(2)
+# Mapping kategori ke angka
+mapping_status_perkawinan = {
+    "Belum Menikah": 0,
+    "Menikah": 1
+}
+mapping_status_pekerjaan = {
+    "Karyawan Tetap": 0,
+    "Karywana Kontrak": 1,
+    "Wirausaha": 2,
+    "Pensiunan": 3
+}
 
-    with col1:
-        pekerjaan = st.selectbox("Jenis Pekerjaan", ["KARYAWAN SWASTA", "WIRAUSAHA", "BURUH HARIAN LEPAS", "PETANI", "PETERNAK"])
-        pendapatan = st.selectbox("Pendapatan", ["<200000", "200000-5000000", ">5000000"])
-        usia = st.selectbox("Usia", ["21-35", "36-50", "51-65"])
+# Cek apakah data_testing sudah ada
+if "data_testing" not in st.session_state:
+    st.error("Data Testing belum tersedia. Silakan input data terlebih dahulu di menu Data Testing.")
+    st.stop()
 
-    with col2:
-        jumlah_kredit = st.selectbox("Jumlah Kredit", ["<1000000", "1000000-3000000", "3000000-6000000"])
-        jangka_waktu = st.selectbox("Jangka Waktu", ["11 MINGGU", "12 BULAN"])
-        nilai_jaminan = st.selectbox("Nilai Jaminan", ["<100000", "300000-600000"])
+# Tampilkan tabel data testing (tanpa kolom Lulus_Kredit)
+st.subheader("Tabel Data Testing (Tanpa Lulus_Kredit)")
+try:
+    data_testing_tanpa_target = st.session_state.data_testing.drop(columns=["Lulus_Kredit"])
+except KeyError:
+    data_testing_tanpa_target = st.session_state.data_testing
 
-    submitted = st.form_submit_button("TESTING")
+st.dataframe(data_testing_tanpa_target, use_container_width=True)
 
-    if submitted:
-        # Buat data input sebagai dataframe
-        new_data = pd.DataFrame([{
-            "Pekerjaan": pekerjaan,
-            "Pendapatan": pendapatan,
-            "Usia": usia,
-            "Jumlah_Kredit": jumlah_kredit,
-            "Jangka_Waktu": jangka_waktu,
-            "Nilai_Jaminan": nilai_jaminan
-        }])
+# Pilih baris untuk testing
+st.subheader("Pilih Baris untuk Testing")
+if not data_testing_tanpa_target.empty:
+    selected_index = st.selectbox(
+        "Pilih Index Baris yang Mau Dites:",
+        data_testing_tanpa_target.index.tolist()
+    )
 
-        # Preprocessing (pastikan sama seperti waktu training)
-        # Misal kamu sudah pakai encoder sebelumnya, load juga
-        # encoder = joblib.load("encoder.pkl")
-        # new_data_encoded = encoder.transform(new_data)
+    if st.button("🔎 LAKUKAN TESTING BARIS TERPILIH"):
+        # Ambil 1 baris berdasarkan index yang dipilih
+        selected_row = data_testing_tanpa_target.loc[[selected_index]].copy()  # tetap dalam bentuk DataFrame
 
-        prediction = model.predict(new_data)[0]
-        prediction_proba = model.predict_proba(new_data)[0]
+        # Mapping kolom yang perlu diubah
+        selected_row["Status_Perkawinan"] = selected_row["Status_Perkawinan"].map(mapping_status_perkawinan)
+        selected_row["Status_Pekerjaan"] = selected_row["Status_Pekerjaan"].map(mapping_status_pekerjaan)
 
-        st.success(f"Hasil Prediksi: **{prediction}**")
-        st.write(f"Persentase:")
+            # Cek NaN
+        if selected_row.isnull().any().any():
+            st.error("Data yang dipilih memiliki nilai yang tidak valid setelah mapping.\nPeriksa kembali inputan Status_Perkawinan dan Status_Pekerjaan.")
+            st.stop()
+
+        # Prediksi
+        prediction = model.predict(selected_row)[0]
+        prediction_proba = model.predict_proba(selected_row)[0]
+
+        st.subheader("Hasil Prediksi")
+        st.write(f"**Prediksi:** {prediction}")
+        st.write(f"**Probabilitas:**")
         st.write({
             "Layak": f"{round(prediction_proba[1]*100, 2)}%",
             "Tidak Layak": f"{round(prediction_proba[0]*100, 2)}%"
         })
+
+else:
+    st.info("Data Testing kosong. Silakan input data terlebih dahulu.")
