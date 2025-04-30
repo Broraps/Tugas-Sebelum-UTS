@@ -69,6 +69,20 @@ if not data_testing_tanpa_target.empty:
             "Layak": f"{round(prediction_proba[1]*100, 2)}%",
             "Tidak Layak": f"{round(prediction_proba[0]*100, 2)}%"
         })
+        # --- Tambahkan Simpan ke Session State ---
+        # Inisialisasi jika belum ada
+        if "hasil_prediksi" not in st.session_state:
+            st.session_state.hasil_prediksi = pd.DataFrame()
 
-else:
-    st.info("Data Testing kosong. Silakan input data terlebih dahulu.")
+        # Ambil data original + tambahkan hasil prediksi
+        new_result = data_testing_tanpa_target.loc[[selected_index]].copy()
+        new_result["Hasil_Prediksi"] = prediction
+
+        # Simpan ke hasil_prediksi
+        st.session_state.hasil_prediksi = pd.concat(
+            [st.session_state.hasil_prediksi, new_result],
+            ignore_index=True
+        )
+
+        st.success(f"✅ Hasil prediksi untuk baris {selected_index} berhasil disimpan!")
+

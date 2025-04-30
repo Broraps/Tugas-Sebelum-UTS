@@ -62,4 +62,4 @@ else:
 # Tampilkan tabel data
 st.subheader("Tabel Data Testing")
 # Tampilkan Data Testing tanpa kolom Lulus_Kredit
-st.dataframe(st.session_state.data_testing.drop(columns=["Lulus_Kredit"]), use_container_width=True)
+st.dataframe(st.session_state.data_testing, use_container_width=True)
